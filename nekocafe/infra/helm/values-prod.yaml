@@ -1,0 +1,39 @@
+# prod 环境：金丝雀 5% → 25% → 50% → 100%；P95/错误率自动回滚
+# ⚠️ 「一行配置即可灰度发布到 5%」就是下方的 canary.weight
+
+global:
+  environment: prod
+
+services:
+  reservation:
+    replicaCount: 4
+    resources:
+      requests: { cpu: 200m, memory: 256Mi }
+      limits:   { cpu: 1000m, memory: 512Mi }
+    autoscaling:
+      minReplicas: 4
+      maxReplicas: 20
+  member:
+    replicaCount: 4
+    resources:
+      requests: { cpu: 200m, memory: 384Mi }
+      limits:   { cpu: 1000m, memory: 768Mi }
+    autoscaling:
+      minReplicas: 4
+      maxReplicas: 16
+
+canary:
+  enabled: true
+  weight: 5            # ← 一行：灰度 5%
+  analysisInterval: 30s
+  successThreshold:
+    p95LatencyMs: 300
+    errorRate: 0.01
+
+observability:
+  otel:
+    samplingRatio: 0.1   # 10% 采样
+
+ingress:
+  host: api.nekocafe.com
+  tls: true

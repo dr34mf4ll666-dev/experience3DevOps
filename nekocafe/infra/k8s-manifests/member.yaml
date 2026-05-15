@@ -1,0 +1,77 @@
+# member 服务原生 K8s 清单 —— 与 reservation 同模式
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: member-config
+  namespace: nekocafe-dev
+data:
+  LOG_LEVEL: "INFO"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "otel-collector.observability:4317"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: member
+  namespace: nekocafe-dev
+  labels:
+    app.kubernetes.io/name: member
+    app.kubernetes.io/part-of: nekocafe
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app.kubernetes.io/name: member }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: member }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+    spec:
+      serviceAccountName: member
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: member
+          image: ghcr.io/nekocafe/member:latest
+          ports: [{ name: http, containerPort: 8080 }]
+          envFrom: [{ configMapRef: { name: member-config } }]
+          env:
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef: { name: nekocafe-secrets, key: db-dsn }
+          resources:
+            requests: { cpu: 100m, memory: 192Mi }
+            limits:   { cpu: 500m, memory: 384Mi }
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            initialDelaySeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: member
+  namespace: nekocafe-dev
+spec:
+  ports: [{ name: http, port: 8080, targetPort: http }]
+  selector:
+    app.kubernetes.io/name: member
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: member
+  namespace: nekocafe-dev

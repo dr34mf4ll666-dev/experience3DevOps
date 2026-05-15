@@ -1,0 +1,102 @@
+# K8s 原生 YAML 兜底
+#
+# 此目录提供不依赖 Helm 的原生 K8s 清单，仅用于：
+#   1) 学习参考（看真实渲染后的 yaml）
+#   2) 极简环境（kubeadm-bare）应急部署
+#
+# 日常请用 Helm Chart（infra/helm/）。
+#
+# 应用：kubectl apply -f infra/k8s-manifests/
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nekocafe-dev
+  labels:
+    nekocafe.io/environment: dev
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: reservation-config
+  namespace: nekocafe-dev
+data:
+  LOG_LEVEL: "info"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "otel-collector.observability:4317"
+  MEMBER_SERVICE_URL: "http://member:8080"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reservation
+  namespace: nekocafe-dev
+  labels:
+    app.kubernetes.io/name: reservation
+    app.kubernetes.io/part-of: nekocafe
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app.kubernetes.io/name: reservation }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: reservation }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: reservation
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: reservation
+          image: ghcr.io/nekocafe/reservation:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 8080 }
+          envFrom:
+            - configMapRef: { name: reservation-config }
+          env:
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef: { name: nekocafe-secrets, key: db-dsn }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits:   { cpu: 500m, memory: 256Mi }
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reservation
+  namespace: nekocafe-dev
+spec:
+  type: ClusterIP
+  ports:
+    - { name: http, port: 8080, targetPort: http }
+  selector:
+    app.kubernetes.io/name: reservation
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: reservation
+  namespace: nekocafe-dev

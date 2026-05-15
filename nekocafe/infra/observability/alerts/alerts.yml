@@ -1,0 +1,68 @@
+# NekoCafé 核心告警规则
+#
+# 三条必交告警 + 两条增量；触发后会同步到 PagerDuty / Slack。
+# severity 标签用于路由：page=电话，critical=Slack #incident，warning=#alerts。
+groups:
+  - name: nekocafe.slo
+    interval: 30s
+    rules:
+      # ① 高错误率：5 分钟 5xx 占比 > 1%
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{service=~"reservation|member",code=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{service=~"reservation|member"}[5m]))
+          ) > 0.01
+        for: 2m
+        labels: { severity: critical, team: backend }
+        annotations:
+          summary: "{{ $labels.service }} 5xx 错误率 > 1%（当前 {{ $value | humanizePercentage }}）"
+          description: |
+            过去 5 分钟 5xx 错误率超阈值。
+            Runbook: https://github.com/nekocafe/nekocafe/blob/main/docs/runbook.md#high-error-rate
+            Grafana: http://localhost:3000/d/nekocafe-overview
+          dashboard: "http://localhost:3000/d/nekocafe-overview"
+
+      # ② 高 P99 延迟
+      - alert: HighP99Latency
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le, service) (rate(http_request_duration_seconds_bucket[5m]))
+          ) > 0.5
+        for: 5m
+        labels: { severity: warning, team: backend }
+        annotations:
+          summary: "{{ $labels.service }} P99 延迟 > 500ms（当前 {{ $value }}s）"
+          runbook: "https://github.com/nekocafe/nekocafe/blob/main/docs/runbook.md#high-latency"
+
+      # ③ Pod 频繁重启
+      - alert: PodCrashLooping
+        expr: |
+          increase(kube_pod_container_status_restarts_total{namespace=~"nekocafe-.*"}[5m]) >= 3
+        for: 0m
+        labels: { severity: page, team: backend }
+        annotations:
+          summary: "Pod {{ $labels.pod }} 在 5 分钟内重启 ≥ 3 次"
+          description: "命名空间 {{ $labels.namespace }} 的 {{ $labels.container }} 容器持续崩溃。"
+
+  - name: nekocafe.saturation
+    interval: 30s
+    rules:
+      # ④ 数据库连接饱和（增量告警）
+      - alert: DBPoolNearExhaustion
+        expr: pg_pool_in_use_connections / pg_pool_max_connections > 0.85
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Postgres 连接池使用率 > 85%"
+
+      # ⑤ 金丝雀 Analysis 失败
+      - alert: CanaryAnalysisFailed
+        expr: |
+          increase(rollout_analysis_run_metric_failure[5m]) > 0
+        for: 0m
+        labels: { severity: page }
+        annotations:
+          summary: "金丝雀分析失败：{{ $labels.rollout }}"
+          description: "Argo Rollouts 已触发自动回滚，确认现场。"

@@ -1,0 +1,50 @@
+{
+  "uid": "nekocafe-dora",
+  "title": "NekoCafé DORA 指标",
+  "tags": ["dora"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "refresh": "1m",
+  "time": { "from": "now-14d", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "部署频率（次/天）",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 6 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "sum(increase(deployment_total[1d]))" }]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "变更前置时间 P50（分钟）",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 6 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "histogram_quantile(0.5, sum(rate(change_lead_time_seconds_bucket[14d])) by (le)) / 60" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "变更失败率",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 6 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "sum(increase(deployment_failed_total[14d])) / sum(increase(deployment_total[14d]))" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit" } }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "MTTR（分钟）",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 6 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "avg(incident_resolution_seconds) / 60" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+# 实际项目中由 `go mod tidy` 生成，文件含数百行 hash。
+# 此处为示例占位，CI 中执行 go mod download 时会重建。

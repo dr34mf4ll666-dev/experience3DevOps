@@ -1,0 +1,28 @@
+# dev 环境覆盖：单副本、关闭 HPA、详细日志、全采样
+
+global:
+  environment: dev
+
+services:
+  reservation:
+    replicaCount: 1
+    autoscaling: { enabled: false }
+    pdb: { enabled: false }
+    env:
+      LOG_LEVEL: debug
+  member:
+    replicaCount: 1
+    autoscaling: { enabled: false }
+    pdb: { enabled: false }
+    env:
+      LOG_LEVEL: DEBUG
+
+canary:
+  enabled: false
+
+observability:
+  otel:
+    samplingRatio: 1.0
+
+ingress:
+  host: nekocafe-dev.local

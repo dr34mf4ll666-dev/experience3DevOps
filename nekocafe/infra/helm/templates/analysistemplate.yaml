@@ -1,0 +1,39 @@
+{{- if .Values.canary.enabled }}
+{{- range $name, $svc := .Values.services }}
+{{- if $svc.enabled }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: {{ $.Release.Name }}-{{ $name }}-analysis
+spec:
+  # ⚠️ 自动回滚阈值：P95 延迟 > 300ms 或 错误率 > 1% → 任一不满足即回滚
+  args:
+    - name: service-name
+      value: {{ $name }}
+  metrics:
+    - name: p95-latency
+      interval: {{ $.Values.canary.analysisInterval }}
+      successCondition: result[0] < {{ div $.Values.canary.successThreshold.p95LatencyMs 1000.0 }}
+      failureLimit: 3
+      provider:
+        prometheus:
+          address: http://prometheus.observability:9090
+          query: |
+            histogram_quantile(0.95,
+              sum(rate(http_request_duration_seconds_bucket{service="{{`{{ args.service-name }}`}}"}[2m])) by (le)
+            )
+    - name: error-rate
+      interval: {{ $.Values.canary.analysisInterval }}
+      successCondition: result[0] < {{ $.Values.canary.successThreshold.errorRate }}
+      failureLimit: 3
+      provider:
+        prometheus:
+          address: http://prometheus.observability:9090
+          query: |
+            sum(rate(http_requests_total{service="{{`{{ args.service-name }}`}}",code=~"5.."}[2m]))
+            /
+            sum(rate(http_requests_total{service="{{`{{ args.service-name }}`}}"}[2m]))
+{{- end }}
+{{- end }}
+{{- end }}

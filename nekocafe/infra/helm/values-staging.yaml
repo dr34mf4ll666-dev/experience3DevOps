@@ -1,0 +1,28 @@
+# staging 环境：金丝雀启用，但流量低、采样率高，用作真流量演练
+
+global:
+  environment: staging
+
+services:
+  reservation:
+    replicaCount: 2
+  member:
+    replicaCount: 2
+
+canary:
+  enabled: true
+  weight: 20         # staging 用较高的金丝雀比例加速验证
+  steps:
+    - setWeight: 20
+    - pause: { duration: 2m }
+    - setWeight: 60
+    - pause: { duration: 2m }
+    - setWeight: 100
+
+observability:
+  otel:
+    samplingRatio: 0.5
+
+ingress:
+  host: nekocafe-staging.local
+  tls: true

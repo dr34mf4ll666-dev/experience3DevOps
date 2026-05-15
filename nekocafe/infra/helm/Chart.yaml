@@ -1,0 +1,14 @@
+apiVersion: v2
+name: nekocafe
+description: NekoCafé 微服务 Helm Chart（reservation + member）
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+maintainers:
+  - name: NekoCafé Team
+    email: devops@nekocafe.example
+keywords:
+  - microservices
+  - canary
+  - argo-rollouts
+home: https://github.com/nekocafe/nekocafe

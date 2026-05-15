@@ -1,0 +1,93 @@
+# 默认值，会被 values-{env}.yaml 覆盖
+
+global:
+  imageRegistry: ghcr.io/nekocafe
+  imagePullPolicy: IfNotPresent
+  environment: dev
+
+services:
+  reservation:
+    enabled: true
+    replicaCount: 2
+    image:
+      repository: reservation
+      tag: latest
+    port: 8080
+    resources:
+      requests: { cpu: 100m, memory: 128Mi }
+      limits:   { cpu: 500m, memory: 256Mi }
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 10
+      targetCPU: 70
+    pdb:
+      enabled: true
+      minAvailable: 1
+    env:
+      LOG_LEVEL: info
+      MEMBER_SERVICE_URL: http://nekocafe-member:8080
+
+  member:
+    enabled: true
+    replicaCount: 2
+    image:
+      repository: member
+      tag: latest
+    port: 8080
+    resources:
+      requests: { cpu: 100m, memory: 192Mi }
+      limits:   { cpu: 500m, memory: 384Mi }
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 8
+      targetCPU: 70
+    pdb:
+      enabled: true
+      minAvailable: 1
+    env:
+      LOG_LEVEL: INFO
+
+# 金丝雀策略（Argo Rollouts）
+canary:
+  enabled: false
+  weight: 5          # 初始流量百分比
+  steps:
+    - setWeight: 5
+    - pause: { duration: 5m }
+    - setWeight: 25
+    - pause: { duration: 5m }
+    - setWeight: 50
+    - pause: { duration: 5m }
+    - setWeight: 100
+  analysisInterval: 30s
+  successThreshold:
+    p95LatencyMs: 300
+    errorRate: 0.01
+
+# 可观测性
+observability:
+  serviceMonitor:
+    enabled: true
+    interval: 15s
+  otel:
+    endpoint: otel-collector.observability:4317
+    samplingRatio: 1.0   # prod 在 values-prod 中覆盖为 0.1
+
+# Ingress
+ingress:
+  enabled: true
+  className: nginx
+  host: nekocafe.local
+  tls: false
+
+# 密钥引用（ExternalSecret 名）
+secrets:
+  externalSecret: nekocafe-secrets
+
+# 数据库连接（通过 Secret 注入；这里只占位）
+database:
+  existingSecret: nekocafe-secrets
+  hostKey: db-host
+  passwordKey: db-password
