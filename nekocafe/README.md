@@ -1,6 +1,6 @@
 # 🐱 NekoCafé — 猫咪主题餐饮预约平台 (DevOps PoC)
 
-> 实验三产出物 D3-2：源代码与配置仓库。本仓库为「NekoCafé」预约平台中**预约服务（reservation）**与**会员服务（member）**两个核心微服务的完整 DevOps PoC，覆盖容器化、CI/CD、渐进式发布、可观测性与 DORA 度量。
+本仓库为「NekoCafé」预约平台中**预约服务（reservation）**与**会员服务（member）**两个核心微服务的完整 DevOps PoC，覆盖容器化、CI/CD、渐进式发布、可观测性与 DORA 度量。
 
 [![CI](https://github.com/nekocafe/nekocafe/actions/workflows/ci.yml/badge.svg)](https://github.com/nekocafe/nekocafe/actions/workflows/ci.yml)
 [![CD](https://github.com/nekocafe/nekocafe/actions/workflows/cd.yml/badge.svg)](https://github.com/nekocafe/nekocafe/actions/workflows/cd.yml)
