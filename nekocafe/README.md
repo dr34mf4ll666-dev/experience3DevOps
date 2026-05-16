@@ -1,4 +1,4 @@
-# 🐱 NekoCafé — 猫咪主题餐饮预约平台 (DevOps PoC)
+DevOps PoC
 
 本仓库为「NekoCafé」预约平台中**预约服务（reservation）**与**会员服务（member）**两个核心微服务的完整 DevOps PoC，覆盖容器化、CI/CD、渐进式发布、可观测性与 DORA 度量。
 
