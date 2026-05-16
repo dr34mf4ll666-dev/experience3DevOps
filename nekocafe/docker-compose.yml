@@ -13,19 +13,15 @@ services:
       - SERVICE_NAME=reservation
       - DB_DSN=postgres://neko:neko@postgres:5432/nekocafe?sslmode=disable
       - REDIS_ADDR=redis:6379
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
       - OTEL_SERVICE_NAME=reservation
       - LOG_LEVEL=info
       - MEMBER_SERVICE_URL=http://member:8080
     depends_on:
       postgres: { condition: service_healthy }
-      redis: { condition: service_healthy }
+      redis:    { condition: service_healthy }
       otel-collector: { condition: service_started }
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
+    restart: unless-stopped
 
   member:
     build:
@@ -37,17 +33,13 @@ services:
     environment:
       - SERVICE_NAME=member
       - DB_DSN=postgresql://neko:neko@postgres:5432/nekocafe
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
       - OTEL_SERVICE_NAME=member
       - LOG_LEVEL=INFO
     depends_on:
       postgres: { condition: service_healthy }
       otel-collector: { condition: service_started }
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz')"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
+    restart: unless-stopped
 
   # ------------ 数据 ------------
   postgres:
@@ -76,16 +68,15 @@ services:
       timeout: 3s
       retries: 5
 
-  # ------------ 可观测性 ------------
+  # ------------ 可观测性（可选，注释掉可加快启动） ------------
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.99.0
     command: ["--config=/etc/otelcol/config.yaml"]
     volumes:
       - ./infra/observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro
     ports:
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
-      - "8888:8888"   # Collector self-metrics
+      - "4317:4317"
+      - "4318:4318"
 
   prometheus:
     image: prom/prometheus:v2.51.0
@@ -110,8 +101,7 @@ services:
     volumes:
       - ./infra/observability/tempo.yaml:/etc/tempo.yaml:ro
     ports:
-      - "3200:3200"   # Tempo
-      - "9095:9095"   # gRPC
+      - "3200:3200"
 
   grafana:
     image: grafana/grafana:10.4.2
@@ -124,10 +114,7 @@ services:
       - ./infra/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
       - "3000:3000"
-    depends_on:
-      - prometheus
-      - loki
-      - tempo
+    depends_on: [prometheus, loki, tempo]
 
 volumes:
   pgdata:

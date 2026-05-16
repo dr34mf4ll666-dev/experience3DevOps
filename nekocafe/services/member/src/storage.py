@@ -26,7 +26,8 @@ class Member(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
-engine = create_async_engine(settings.db_dsn, echo=False, pool_pre_ping=True)
+dsn = settings.db_dsn.replace("postgresql://", "postgresql+asyncpg://", 1)
+engine = create_async_engine(dsn, echo=False, pool_pre_ping=True)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 

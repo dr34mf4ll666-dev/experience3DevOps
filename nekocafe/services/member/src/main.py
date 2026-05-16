@@ -10,7 +10,6 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from prometheus_client import make_asgi_app
 
 from .config import settings
@@ -43,8 +42,8 @@ def create_app() -> FastAPI:
     # Prometheus
     app.mount("/metrics", make_asgi_app())
 
-    # 自动给 FastAPI 路由埋点（含 traceparent 透传）
-    FastAPIInstrumentor.instrument_app(app, excluded_urls="healthz,readyz,metrics")
+
+   
     return app
 
 
